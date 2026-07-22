@@ -22,13 +22,11 @@ import FormInput from '../../components/FormInput';
 import ScreenHeader from '../../components/ScreenHeader';
 import { COLORS, RADIUS } from '../../constants/theme';
 
-const RETRIEVAL_LOCATIONS = [
-  'Evandy Hostel',
-  'Bani Hostel',
-  'Balme Library Security Post',
-  'Commonwealth Hall Security Post',
-  'Legon Hall Security Post',
-];
+import {
+  RETRIEVAL_LOCATIONS,
+} from '../../constants/retrievalLocations';
+
+
 
 export default function ReportScreen() {
   const router = useRouter();
@@ -176,7 +174,8 @@ export default function ReportScreen() {
       Real GPS functionality will be connected later.
     */
 
-    const temporaryNearestLocation = 'Evandy Hostel';
+    const temporaryNearestLocation =
+          RETRIEVAL_LOCATIONS[0].name;
 
     setRetrievalLocation(temporaryNearestLocation);
     clearError('retrievalLocation');
@@ -559,15 +558,15 @@ export default function ReportScreen() {
             </View>
 
             {RETRIEVAL_LOCATIONS.map((location) => {
-              const isSelected =
-                retrievalLocation === location;
+                  const isSelected =
+                  retrievalLocation === location.name;
 
               return (
                 <Pressable
-                  key={location}
+                  key={location.id}
                   style={styles.modalLocationRow}
                   onPress={() =>
-                    selectRetrievalLocation(location)
+                    selectRetrievalLocation(location.name)
                   }
                 >
                   <View style={styles.modalLocationLeft}>
@@ -578,7 +577,7 @@ export default function ReportScreen() {
                     />
 
                     <Text style={styles.modalLocationText}>
-                      {location}
+                      {location.name}
                     </Text>
                   </View>
 
