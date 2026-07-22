@@ -33,11 +33,19 @@ import {
   formatDistance,
 } from '../../utils/locationUtils';
 
+import {
+  useAppData,
+} from '../../context/AppDataContext';
+
 
 
 export default function ReportScreen() {
   const router = useRouter();
 
+  const {
+  addReport,
+  createNotification,
+} = useAppData();
   const [photo, setPhoto] = useState(null);
   const [studentId, setStudentId] = useState('');
   const [confirmStudentId, setConfirmStudentId] = useState('');
@@ -289,30 +297,39 @@ export default function ReportScreen() {
   };
 
   const submitReport = () => {
-    const formIsValid = validateForm();
+  const formIsValid = validateForm();
 
-    if (!formIsValid) {
-      Alert.alert(
-        'Incomplete report',
-        'Please correct the highlighted fields before submitting.'
-      );
-      return;
-    }
+  if (!formIsValid) {
+    Alert.alert(
+      'Incomplete report',
+      'Please correct the highlighted fields before submitting.'
+    );
 
-    /*
-      The report is not being sent to a backend yet.
-      We currently navigate to the success screen with the
-      selected retrieval location and Student ID.
-    */
+    return;
+  }
 
-    router.push({
-      pathname: '/report-submitted',
-      params: {
-        location: retrievalLocation,
-        studentId,
-      },
-    });
-  };
+  const newReport = addReport({
+    studentId,
+    retrievalLocation,
+    foundLocation,
+    imageUri: photo?.uri,
+    finderContact: contact,
+    finderEmail: email,
+  });
+
+  createNotification({
+    studentId,
+    report: newReport,
+  });
+
+  router.push({
+    pathname: '/report-submitted',
+    params: {
+      location: retrievalLocation,
+      studentId,
+    },
+  });
+};
 
   return (
     <SafeAreaView style={styles.safe}>

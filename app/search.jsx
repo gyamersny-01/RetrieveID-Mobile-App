@@ -17,26 +17,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, RADIUS } from '../constants/theme';
 
-const FOUND_ID_RECORDS = [
-  {
-    studentId: '11124499',
-    retrievalLocation: 'Evandy Hostel',
-    foundLocation: 'Balme Library',
-    dateReported: '18 July 2026',
-    status: 'Awaiting collection',
-  },
-  {
-    studentId: '10987654',
-    retrievalLocation: 'Balme Library Security Post',
-    foundLocation: 'JQB Lecture Hall',
-    dateReported: '17 July 2026',
-    status: 'Awaiting collection',
-  },
-];
+import {
+  useAppData,
+} from '../context/AppDataContext';
 
 export default function SearchScreen() {
   const router = useRouter();
 
+
+  const {
+  findReportByStudentId,
+} = useAppData();
   const [studentId, setStudentId] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -66,9 +57,8 @@ export default function SearchScreen() {
     setIsSearching(true);
 
     setTimeout(() => {
-      const matchingRecord = FOUND_ID_RECORDS.find(
-        (record) => record.studentId === studentId
-      );
+      const matchingRecord =
+            findReportByStudentId(studentId);
 
       setIsSearching(false);
 
