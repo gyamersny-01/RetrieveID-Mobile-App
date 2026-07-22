@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -16,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 
 import AppButton from '../../components/AppButton';
 import FormInput from '../../components/FormInput';
@@ -25,6 +27,11 @@ import { COLORS, RADIUS } from '../../constants/theme';
 import {
   RETRIEVAL_LOCATIONS,
 } from '../../constants/retrievalLocations';
+
+import {
+  findNearestRetrievalLocation,
+  formatDistance,
+} from '../../utils/locationUtils';
 
 
 
@@ -41,6 +48,7 @@ export default function ReportScreen() {
   const [confirmed, setConfirmed] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isLocating, setIsLocating] = useState(false);
 
   const clearError = (field) => {
     setErrors((currentErrors) => ({
@@ -168,23 +176,63 @@ export default function ReportScreen() {
     clearError('retrievalLocation');
   };
 
-  const findNearestLocation = () => {
-    /*
-      This is temporary frontend behaviour.
-      Real GPS functionality will be connected later.
-    */
+  const findNearestLocation = async () => {
+  try {
+    setIsLocating(true);
 
-    const temporaryNearestLocation =
-          RETRIEVAL_LOCATIONS[0].name;
+    const permission =
+      await Location.requestForegroundPermissionsAsync();
 
-    setRetrievalLocation(temporaryNearestLocation);
+    if (permission.status !== 'granted') {
+      Alert.alert(
+        'Location permission required',
+        'Please allow RetrieveID to use your location so it can identify the nearest retrieval point.'
+      );
+
+      return;
+    }
+
+    const currentPosition =
+      await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+    const nearestLocation =
+      findNearestRetrievalLocation(
+        currentPosition.coords.latitude,
+        currentPosition.coords.longitude,
+        RETRIEVAL_LOCATIONS
+      );
+
+    if (!nearestLocation) {
+      Alert.alert(
+        'No retrieval locations',
+        'No approved retrieval locations are currently available.'
+      );
+
+      return;
+    }
+
+    setRetrievalLocation(nearestLocation.name);
     clearError('retrievalLocation');
 
     Alert.alert(
-      'Nearest retrieval location',
-      `${temporaryNearestLocation} has been selected for this frontend demonstration.`
+      'Nearest retrieval location selected',
+      `${nearestLocation.name} is approximately ${formatDistance(
+        nearestLocation.distance
+      )}.`
     );
-  };
+  } catch (error) {
+    console.error('Unable to determine location:', error);
+
+    Alert.alert(
+      'Unable to find your location',
+      'Check that location services are enabled and try again.'
+    );
+  } finally {
+    setIsLocating(false);
+  }
+};
 
   const validateForm = () => {
     const nextErrors = {};
@@ -461,21 +509,34 @@ export default function ReportScreen() {
             <Text style={styles.or}>OR</Text>
 
             <Pressable
-              style={styles.locationOption}
-              onPress={findNearestLocation}
-            >
-              <View style={styles.nearestRow}>
-                <Ionicons
-                  name="locate-outline"
-                  size={20}
-                  color={COLORS.text}
-                />
+                style={[
+                  styles.locationOption,
+                  isLocating ? styles.locationOptionDisabled : null,
+                ]}
+                onPress={findNearestLocation}
+                disabled={isLocating}
+              >
+                <View style={styles.nearestRow}>
+                  {isLocating ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.primary}
+                    />
+                  ) : (
+                    <Ionicons
+                      name="locate-outline"
+                      size={20}
+                      color={COLORS.text}
+                    />
+                  )}
 
-                <Text style={styles.locationOptionText}>
-                  Find Nearest Location
-                </Text>
-              </View>
-            </Pressable>
+                  <Text style={styles.locationOptionText}>
+                    {isLocating
+                      ? 'Finding nearest location...'
+                      : 'Find Nearest Location'}
+                  </Text>
+                </View>
+</Pressable>
 
             {errors.retrievalLocation ? (
               <Text style={styles.locationError}>
@@ -760,6 +821,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+
+  locationOptionDisabled: {
+    opacity: 0.65,
   },
 
   locationOptionText: {

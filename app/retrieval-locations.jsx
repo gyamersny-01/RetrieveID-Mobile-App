@@ -21,60 +21,18 @@ import {
   RETRIEVAL_LOCATIONS,
 } from '../constants/retrievalLocations';
 
+import {
+  calculateDistance,
+  formatDistance,
+} from '../utils/locationUtils';
+
 /**
  * Calculates the distance between two coordinates using
  * the Haversine formula.
  *
  * The returned value is measured in kilometres.
  */
-function calculateDistance(
-  latitude1,
-  longitude1,
-  latitude2,
-  longitude2
-) {
-  const earthRadius = 6371;
 
-  const latitudeDifference =
-    ((latitude2 - latitude1) * Math.PI) / 180;
-
-  const longitudeDifference =
-    ((longitude2 - longitude1) * Math.PI) / 180;
-
-  const firstLatitude =
-    (latitude1 * Math.PI) / 180;
-
-  const secondLatitude =
-    (latitude2 * Math.PI) / 180;
-
-  const a =
-    Math.sin(latitudeDifference / 2) ** 2 +
-    Math.cos(firstLatitude) *
-      Math.cos(secondLatitude) *
-      Math.sin(longitudeDifference / 2) ** 2;
-
-  const c =
-    2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return earthRadius * c;
-}
-
-function formatDistance(distanceInKilometres) {
-  if (
-    distanceInKilometres === undefined ||
-    distanceInKilometres === null
-  ) {
-    return null;
-  }
-
-  if (distanceInKilometres < 1) {
-    return `${Math.round(
-      distanceInKilometres * 1000
-    )} m away`;
-  }
-
-  return `${distanceInKilometres.toFixed(1)} km away`;
-}
 
 export default function RetrievalLocationsScreen() {
   const [isLocating, setIsLocating] = useState(false);
