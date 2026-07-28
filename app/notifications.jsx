@@ -64,7 +64,10 @@ export default function NotificationsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader title="Notifications" />
+        <ScreenHeader
+          title="Notifications"
+          showBell={false}
+      />
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryText}>
