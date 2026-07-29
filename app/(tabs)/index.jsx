@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, RADIUS } from '../../constants/theme';
 
+import NotificationBell from '../../components/NotificationBell';
+
 function ActionCard({ primary = false, icon, title, description, buttonLabel, onPress }) {
   return (
     <View style={[styles.card, primary ? styles.primaryCard : styles.outlineCard]}>
@@ -30,9 +32,7 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.welcome}>Welcome to{`\n`}RetrieveID</Text>
-          <Pressable onPress={() => router.push('/notifications')} hitSlop={12}>
-            <Ionicons name="notifications-outline" size={27} color={COLORS.text} />
-          </Pressable>
+          <NotificationBell />
         </View>
 
         <ActionCard
@@ -59,7 +59,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   content: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 34, gap: 28 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, overflow: 'visible',
+  zIndex: 10 },
   welcome: { fontSize: 27, lineHeight: 30, fontWeight: '500', color: COLORS.text },
   card: { minHeight: 220, borderRadius: RADIUS.medium, padding: 20 },
   primaryCard: { backgroundColor: COLORS.primary },
