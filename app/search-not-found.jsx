@@ -7,6 +7,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import {
+  Redirect,
   useLocalSearchParams,
   useRouter,
 } from 'expo-router';
@@ -14,10 +15,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, RADIUS } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
 
 export default function SearchNotFoundScreen() {
   const router = useRouter();
-  const { studentId } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+
+  const {
+    isAuthenticated,
+    isAuthReady,
+  } = useAuth();
+
+  const studentId = Array.isArray(params.studentId)
+    ? params.studentId[0]
+    : params.studentId;
+
+  if (!isAuthReady) {
+  return null;
+}
+
+if (!isAuthenticated) {
+  return <Redirect href="/welcome" />;
+}
 
   return (
     <SafeAreaView style={styles.safe}>

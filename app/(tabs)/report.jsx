@@ -322,9 +322,10 @@ export default function ReportScreen() {
     report: newReport,
   });
 
-  router.push({
+  router.replace({
     pathname: '/report-submitted',
     params: {
+      from: 'report',
       location: retrievalLocation,
       studentId,
     },

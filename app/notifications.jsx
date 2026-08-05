@@ -7,7 +7,10 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import {
+  Redirect,
+  useRouter,
+} from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ScreenHeader from '../components/ScreenHeader';
@@ -24,7 +27,11 @@ import {
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    isAuthReady,
+  } = useAuth();
 
   const {
     notifications,
@@ -32,11 +39,13 @@ export default function NotificationsScreen() {
     markAllNotificationsAsRead,
   } = useAppData();
 
-  const userNotifications =
-    notifications.filter(
-      (notification) =>
-        notification.studentId === user.studentId
-    );
+  const studentId = user?.studentId;
+
+  const userNotifications = notifications.filter(
+    (notification) =>
+    studentId &&
+    notification.studentId === studentId
+  );
 
   const unreadCount = userNotifications.filter(
     (notification) => !notification.isRead
@@ -50,13 +59,30 @@ export default function NotificationsScreen() {
       params: {
         studentId: notification.studentId,
         retrievalLocation:
-          notification.retrievalLocation,
-        foundLocation: 'Not provided',
-        dateReported: notification.createdAt,
-        status: 'Awaiting collection',
+          notification.retrievalLocation ||
+          'Not provided',
+        foundLocation:
+          notification.foundLocation ||
+          'Not provided',
+        dateReported:
+          notification.createdAt ||
+          'Not provided',
+        status:
+          notification.status ||
+          'Awaiting collection',
+        reportId:
+          notification.reportId || '',
       },
     });
   };
+
+  if (!isAuthReady) {
+  return null;
+}
+
+if (!isAuthenticated) {
+  return <Redirect href="/welcome" />;
+}
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -67,7 +93,7 @@ export default function NotificationsScreen() {
         <ScreenHeader
           title="Notifications"
           showBell={false}
-      />
+        />
 
         <View style={styles.summaryRow}>
           <Text style={styles.summaryText}>
@@ -82,8 +108,10 @@ export default function NotificationsScreen() {
 
           {unreadCount > 0 ? (
             <Pressable
-              onPress={markAllNotificationsAsRead}
-            >
+                onPress={() =>
+                  markAllNotificationsAsRead(user?.studentId)
+                }
+              >
               <Text style={styles.markAllText}>
                 Mark all as read
               </Text>

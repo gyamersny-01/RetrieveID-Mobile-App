@@ -11,7 +11,10 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import {
+  Redirect,
+  useRouter,
+} from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ScreenHeader from '../components/ScreenHeader';
@@ -20,9 +23,14 @@ import { COLORS, RADIUS } from '../constants/theme';
 import {
   useAppData,
 } from '../context/AppDataContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function SearchScreen() {
   const router = useRouter();
+  const {
+    isAuthenticated,
+    isAuthReady,
+  } = useAuth();
 
 
   const {
@@ -66,6 +74,7 @@ export default function SearchScreen() {
         router.push({
           pathname: '/search-found',
           params: {
+            reportId: matchingRecord.id,
             studentId: matchingRecord.studentId,
             retrievalLocation: matchingRecord.retrievalLocation,
             foundLocation: matchingRecord.foundLocation,
@@ -85,6 +94,14 @@ export default function SearchScreen() {
       });
     }, 900);
   };
+
+  if (!isAuthReady) {
+  return null;
+}
+
+if (!isAuthenticated) {
+  return <Redirect href="/welcome" />;
+}
 
   return (
     <SafeAreaView style={styles.safe}>

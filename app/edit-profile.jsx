@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import {
+  useEffect,
+  useState,
+} from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,7 +12,10 @@ import {
   View,
 } from 'react-native';
 
-import { useRouter } from 'expo-router';
+import {
+  Redirect,
+  useRouter,
+} from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../components/AppButton';
@@ -20,12 +26,27 @@ import { COLORS, RADIUS } from '../constants/theme';
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user, updateProfile } = useAuth();
+  const {
+    user,
+    updateProfile,
+    isAuthenticated,
+    isAuthReady,
+  } = useAuth();
 
-  const [fullName, setFullName] = useState(user.fullName);
-  const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(user.phone);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+  if (!user) {
+    return;
+  }
+
+  setFullName(user.fullName || '');
+  setEmail(user.email || '');
+  setPhone(user.phone || '');
+  }, [user]);
 
   const clearError = (field) => {
     setErrors((currentErrors) => ({
@@ -92,11 +113,20 @@ export default function EditProfileScreen() {
       [
         {
           text: 'OK',
-          onPress: () => router.back(),
+          onPress: () =>
+            router.replace('/(tabs)/account'),
         },
       ]
     );
   };
+
+  if (!isAuthReady) {
+  return null;
+}
+
+if (!isAuthenticated || !user) {
+  return <Redirect href="/welcome" />;
+}
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -132,7 +162,7 @@ export default function EditProfileScreen() {
 
             <FormInput
               label="Student ID"
-              value={user.studentId}
+              value={user?.studentId || ''}
               editable={false}
               inputStyle={styles.disabledInput}
             />

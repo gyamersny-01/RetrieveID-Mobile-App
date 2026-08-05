@@ -8,7 +8,10 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import {
+  Redirect,
+  useRouter,
+} from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../components/AppButton';
@@ -18,7 +21,11 @@ import { COLORS, RADIUS } from '../constants/theme';
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { register } = useAuth();
+  const {
+    register,
+    isAuthenticated,
+    isAuthReady,
+  } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -29,6 +36,8 @@ export default function SignUpScreen() {
     useState('');
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isCreatingAccount, setIsCreatingAccount] =
+    useState(false);
 
   const clearError = (field) => {
     setErrors((currentErrors) => ({
@@ -111,19 +120,37 @@ export default function SignUpScreen() {
   };
 
   const createAccount = () => {
-    if (!validateForm()) {
-      return;
-    }
+  if (!validateForm()) {
+    return;
+  }
 
-    register({
-      fullName,
-      studentId,
-      email,
-      phone,
-    });
+  setIsCreatingAccount(true);
 
-    router.replace('/account-created');
+  register({
+    fullName,
+    studentId,
+    email,
+    phone,
+  });
+
+  router.replace({
+  pathname: '/account-created',
+  params: {
+    from: 'signup',
+  },
+  });
   };
+
+  if (!isAuthReady) {
+  return null;
+  }
+
+  if (
+    isAuthenticated &&
+    !isCreatingAccount
+  ) {
+  return <Redirect href="/(tabs)" />;
+  }
 
   return (
     <SafeAreaView style={styles.safe}>

@@ -8,7 +8,10 @@ import {
   View,
 } from 'react-native';
 
-import { useRouter } from 'expo-router';
+import {
+  Redirect,
+  useRouter,
+} from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../components/AppButton';
@@ -18,7 +21,11 @@ import { COLORS } from '../constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const {
+  login,
+  isAuthenticated,
+  isAuthReady,
+} = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,14 +67,17 @@ export default function LoginScreen() {
       The backend will later verify the account details.
     */
 
-    login({
-      email,
-      password,
-    });
-
+    login();
     router.replace('/(tabs)');
   };
 
+  if (!isAuthReady) {
+  return null;
+}
+
+if (isAuthenticated) {
+  return <Redirect href="/(tabs)" />;
+}
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.circleTop} />

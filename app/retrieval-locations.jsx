@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { Redirect } from 'expo-router';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ScreenHeader from '../components/ScreenHeader';
+import { useAuth } from '../context/AuthContext';
 import { COLORS, RADIUS } from '../constants/theme';
 import {
   RETRIEVAL_LOCATIONS,
@@ -35,6 +37,10 @@ import {
 
 
 export default function RetrievalLocationsScreen() {
+  const {
+    isAuthenticated,
+    isAuthReady,
+  } = useAuth();
   const [isLocating, setIsLocating] = useState(false);
   const [nearestLocationId, setNearestLocationId] =
     useState(null);
@@ -153,6 +159,14 @@ export default function RetrievalLocationsScreen() {
       );
     }
   };
+
+  if (!isAuthReady) {
+  return null;
+}
+
+if (!isAuthenticated) {
+  return <Redirect href="/welcome" />;
+}
 
   return (
     <SafeAreaView style={styles.safe}>
