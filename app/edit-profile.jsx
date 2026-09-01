@@ -96,15 +96,16 @@ export default function EditProfileScreen() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const saveChanges = () => {
-    if (!validateForm()) {
-      return;
-    }
+  const saveChanges = async () => {
+  if (!validateForm()) {
+    return;
+  }
 
-    updateProfile({
-      fullName: fullName.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
+  try {
+    await updateProfile({
+      fullName,
+      email,
+      phone,
     });
 
     Alert.alert(
@@ -114,11 +115,20 @@ export default function EditProfileScreen() {
         {
           text: 'OK',
           onPress: () =>
-            router.replace('/(tabs)/account'),
+            router.replace(
+              '/(tabs)/account'
+            ),
         },
       ]
     );
-  };
+  } catch (error) {
+    Alert.alert(
+      'Update Failed',
+      error.message ||
+        'Unable to update your profile. Please try again.'
+    );
+  }
+};
 
   if (!isAuthReady) {
   return null;

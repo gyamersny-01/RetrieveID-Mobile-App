@@ -1,0 +1,67 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  fullName     String
+  studentId    String   @unique
+  email        String   @unique
+  phone        String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reports      Report[]
+  notifications Notification[]
+}
+
+enum ReportStatus {
+  AWAITING_COLLECTION
+  COLLECTED
+}
+
+model Report {
+  id                String       @id @default(uuid())
+  studentId         String
+  foundLocation     String
+  retrievalLocation String
+  imageUrl          String?
+  imagePublicId     String?
+  finderContact     String?
+  status            ReportStatus @default(AWAITING_COLLECTION)
+  collectedAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  reportedById      String
+  reportedBy        User         @relation(fields: [reportedById], references: [id])
+
+  notifications     Notification[]
+
+  @@index([studentId, status])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  reportId  String
+  report    Report   @relation(fields: [reportId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([reportId])
+}

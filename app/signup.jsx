@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -119,27 +120,38 @@ export default function SignUpScreen() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const createAccount = () => {
+  const createAccount = async () => {
   if (!validateForm()) {
     return;
   }
 
   setIsCreatingAccount(true);
 
-  register({
-    fullName,
-    studentId,
-    email,
-    phone,
-  });
+  try {
+    await register({
+      fullName,
+      studentId,
+      email,
+      phone,
+      password,
+    });
 
-  router.replace({
-  pathname: '/account-created',
-  params: {
-    from: 'signup',
-  },
-  });
-  };
+    router.replace({
+      pathname: '/account-created',
+      params: {
+        from: 'signup',
+      },
+    });
+  } catch (error) {
+    setIsCreatingAccount(false);
+
+    Alert.alert(
+      'Account Creation Failed',
+      error.message ||
+        'Unable to create your account. Please try again.'
+    );
+  }
+};
 
   if (!isAuthReady) {
   return null;

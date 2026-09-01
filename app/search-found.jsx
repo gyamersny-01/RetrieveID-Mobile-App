@@ -1,5 +1,11 @@
 import {
+  useEffect,
+  useState,
+} from 'react';
+import {
+  ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Platform,
   Pressable,
@@ -18,8 +24,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AppButton from '../components/AppButton';
 import ScreenHeader from '../components/ScreenHeader';
-import { useAppData } from '../context/AppDataContext';
+
 import { useAuth } from '../context/AuthContext';
+import { apiRequest } from '../services/api';
 import {
   COLORS,
   RADIUS,
@@ -36,57 +43,116 @@ function getParamValue(value) {
 export default function SearchFoundScreen() {
   const params = useLocalSearchParams();
   const {
+    user,
+    token,
     isAuthenticated,
     isAuthReady,
   } = useAuth();
 
-  const {
-    getReportById,
-    findReportByStudentId,
-    markReportAsCollected,
-  } = useAppData();
 
-  const paramReportId = getParamValue(
-    params.reportId
-  );
-
-  const paramStudentId = getParamValue(
-    params.studentId
-  );
-
-  const storedReport =
-    getReportById(paramReportId) ||
-    findReportByStudentId(paramStudentId);
 
   const reportId =
-    storedReport?.id || paramReportId;
+  getParamValue(params.reportId);
 
-  const studentId =
-    storedReport?.studentId ||
-    paramStudentId ||
-    'Not available';
+const studentId =
+  getParamValue(params.studentId) ||
+  'Not available';
 
-  const retrievalLocation =
-    storedReport?.retrievalLocation ||
-    getParamValue(params.retrievalLocation) ||
-    'Not available';
+const retrievalLocation =
+  getParamValue(params.retrievalLocation) ||
+  'Not available';
 
-  const foundLocation =
-    storedReport?.foundLocation ||
-    getParamValue(params.foundLocation) ||
-    'Not provided';
+const foundLocation =
+  getParamValue(params.foundLocation) ||
+  'Not provided';
 
-  const dateReported =
-    storedReport?.dateReported ||
-    getParamValue(params.dateReported) ||
-    'Not available';
+const dateReported =
+  getParamValue(params.dateReported) ||
+  'Not available';
 
-  const status =
-    storedReport?.status ||
-    getParamValue(params.status) ||
-    'Awaiting collection';
+const initialStatus =
+  getParamValue(params.status) ||
+  'Awaiting collection';
 
-  const isCollected = status === 'Collected';
+const [status, setStatus] =
+  useState(initialStatus);
+
+const [isCollecting, setIsCollecting] =
+  useState(false);
+
+const [imageUrl, setImageUrl] =
+  useState(null);
+
+const [isImageLoading, setIsImageLoading] =
+  useState(false);
+
+const [imageError, setImageError] =
+  useState('');
+
+
+const isCollected =
+  status === 'Collected' ||
+  status === 'COLLECTED';
+
+const canMarkCollected =
+  user?.studentId === studentId;
+
+
+useEffect(() => {
+  const loadReportImage = async () => {
+    if (!reportId || !token) {
+      return;
+    }
+
+    try {
+      setIsImageLoading(true);
+      setImageError('');
+
+      const data = await apiRequest(
+        `/api/reports/${reportId}/image`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!data?.image?.url) {
+        setImageError(
+          'No Student ID photo is available.'
+        );
+        return;
+      }
+
+      setImageUrl(data.image.url);
+    } catch (error) {
+      console.error(
+        'Unable to load report image:',
+        error
+      );
+
+      if (error.status === 403) {
+        setImageError(
+          'This Student ID photo is only available to the ID owner or the person who reported it.'
+        );
+      } else if (error.status === 404) {
+        setImageError(
+          'No Student ID photo is available for this report.'
+        );
+      } else {
+        setImageError(
+          'Unable to load the Student ID photo.'
+        );
+      }
+    } finally {
+      setIsImageLoading(false);
+    }
+  };
+
+  loadReportImage();
+}, [reportId, token]);
 
   const openDirections = async () => {
     const destination =
@@ -125,37 +191,80 @@ export default function SearchFoundScreen() {
   };
 
   const confirmCollection = () => {
-    if (!reportId) {
-      Alert.alert(
-        'Report unavailable',
-        'The related report could not be found.'
-      );
-
-      return;
-    }
-
+  if (!reportId) {
     Alert.alert(
-      'Confirm collection',
-      'Only mark this Student ID as collected after you have physically received it.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Mark as Collected',
-          onPress: () => {
-            markReportAsCollected(reportId);
+      'Report unavailable',
+      'The related report could not be found.'
+    );
+
+    return;
+  }
+
+  if (!token) {
+    Alert.alert(
+      'Authentication Required',
+      'Please log in again before confirming collection.'
+    );
+
+    return;
+  }
+
+  if (!canMarkCollected) {
+    Alert.alert(
+      'Not Authorized',
+      'Only the student whose ID is linked to this account can confirm collection.'
+    );
+
+    return;
+  }
+
+  Alert.alert(
+    'Confirm collection',
+    'Only mark this Student ID as collected after you have physically received it.',
+    [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Mark as Collected',
+
+        onPress: async () => {
+          try {
+            setIsCollecting(true);
+
+            await apiRequest(
+              `/api/reports/${reportId}/collect`,
+              {
+                method: 'PATCH',
+
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            );
+
+            setStatus('Collected');
 
             Alert.alert(
               'Collection confirmed',
               'The Student ID has been marked as collected.'
             );
-          },
+          } catch (error) {
+            Alert.alert(
+              'Collection Failed',
+              error.message ||
+                'Unable to mark the Student ID as collected.'
+            );
+          } finally {
+            setIsCollecting(false);
+          }
         },
-      ]
-    );
-  };
+      },
+    ]
+  );
+};
 
   if (!isAuthReady) {
   return null;
@@ -203,6 +312,55 @@ if (!isAuthenticated) {
             ? 'This Student ID has been marked as collected.'
             : 'Your Student ID has been reported as found.'}
         </Text>
+
+
+        <View style={styles.imageSection}>
+  <Text style={styles.imageSectionTitle}>
+    Student ID Photo
+  </Text>
+
+  {isImageLoading ? (
+    <View style={styles.imageLoadingBox}>
+      <ActivityIndicator
+        size="small"
+        color={COLORS.primary}
+      />
+
+      <Text style={styles.imageLoadingText}>
+        Loading ID photo...
+      </Text>
+    </View>
+  ) : imageUrl ? (
+    <View style={styles.imageCard}>
+      <Image
+        source={{
+          uri: imageUrl,
+        }}
+        style={styles.idImage}
+        resizeMode="contain"
+        onError={() => {
+          setImageUrl(null);
+          setImageError(
+            'Unable to display the Student ID photo.'
+          );
+        }}
+      />
+    </View>
+  ) : (
+    <View style={styles.imageUnavailableBox}>
+      <Ionicons
+        name="image-outline"
+        size={28}
+        color={COLORS.muted}
+      />
+
+      <Text style={styles.imageUnavailableText}>
+        {imageError ||
+          'No Student ID photo is available.'}
+      </Text>
+    </View>
+  )}
+</View>
 
         <View style={styles.detailsCard}>
           <DetailRow
@@ -260,29 +418,41 @@ if (!isAuthenticated) {
         </View>
 
         {!isCollected ? (
-          <>
-            <AppButton
-              title="Get Directions"
-              onPress={openDirections}
-              style={styles.directionsButton}
-            />
+  <>
+    <AppButton
+      title="Get Directions"
+      onPress={openDirections}
+      style={styles.directionsButton}
+    />
 
-            <Pressable
-              style={styles.collectionButton}
-              onPress={confirmCollection}
-            >
-              <Ionicons
-                name="checkmark-done-outline"
-                size={21}
-                color={COLORS.success}
-              />
+    {canMarkCollected ? (
+      <Pressable
+        style={[
+          styles.collectionButton,
+          isCollecting
+            ? styles.collectionButtonDisabled
+            : null,
+        ]}
+        onPress={confirmCollection}
+        disabled={isCollecting}
+      >
+        <Ionicons
+          name="checkmark-done-outline"
+          size={21}
+          color={COLORS.success}
+        />
 
-              <Text style={styles.collectionButtonText}>
-                Mark as Collected
-              </Text>
-            </Pressable>
-          </>
-        ) : null}
+        <Text
+          style={styles.collectionButtonText}
+        >
+          {isCollecting
+            ? 'Updating...'
+            : 'Mark as Collected'}
+        </Text>
+      </Pressable>
+    ) : null}
+  </>
+) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -451,4 +621,72 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+
+  collectionButtonDisabled: {
+  opacity: 0.6,
+},
+
+
+  imageSection: {
+  marginTop: 30,
+},
+
+imageSectionTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: COLORS.text,
+  marginBottom: 12,
+},
+
+imageCard: {
+  width: '100%',
+  minHeight: 220,
+  backgroundColor: COLORS.surface,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+  borderRadius: RADIUS.large,
+  overflow: 'hidden',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
+idImage: {
+  width: '100%',
+  height: 240,
+},
+
+imageLoadingBox: {
+  minHeight: 180,
+  backgroundColor: COLORS.surface,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+  borderRadius: RADIUS.large,
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+},
+
+imageLoadingText: {
+  color: COLORS.muted,
+  fontSize: 13,
+},
+
+imageUnavailableBox: {
+  minHeight: 150,
+  backgroundColor: COLORS.surface,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+  borderRadius: RADIUS.large,
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingHorizontal: 24,
+  gap: 10,
+},
+
+imageUnavailableText: {
+  color: COLORS.muted,
+  fontSize: 13,
+  lineHeight: 19,
+  textAlign: 'center',
+},
 });

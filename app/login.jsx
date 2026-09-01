@@ -38,38 +38,44 @@ export default function LoginScreen() {
     }));
   };
 
-  const handleLogin = () => {
-    const nextErrors = {};
+  const handleLogin = async () => {
+  const nextErrors = {};
 
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        email.trim()
-      )
-    ) {
-      nextErrors.email =
-        'Please enter a valid email address.';
-    }
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      email.trim()
+    )
+  ) {
+    nextErrors.email =
+      'Please enter a valid email address.';
+  }
 
-    if (password.length < 6) {
-      nextErrors.password =
-        'Password must contain at least 6 characters.';
-    }
+  if (password.length < 6) {
+    nextErrors.password =
+      'Password must contain at least 6 characters.';
+  }
 
-    setErrors(nextErrors);
+  setErrors(nextErrors);
 
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
+  if (Object.keys(nextErrors).length > 0) {
+    return;
+  }
 
-    /*
-      Temporary frontend login.
+  try {
+    await login({
+      email,
+      password,
+    });
 
-      The backend will later verify the account details.
-    */
-
-    login();
     router.replace('/(tabs)');
-  };
+  } catch (error) {
+    Alert.alert(
+      'Login Failed',
+      error.message ||
+        'Unable to log in. Please try again.'
+    );
+  }
+};
 
   if (!isAuthReady) {
   return null;

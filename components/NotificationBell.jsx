@@ -1,4 +1,9 @@
 import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
   Pressable,
   StyleSheet,
   Text,
@@ -6,26 +11,68 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import {
+  usePathname,
+  useRouter,
+} from 'expo-router';
 
 import { COLORS } from '../constants/theme';
-import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
+import { apiRequest } from '../services/api';
 
 export default function NotificationBell() {
   const router = useRouter();
+  const pathname = usePathname();
 
-  const { notifications } = useAppData();
-  const { user, isAuthenticated } = useAuth();
+  const {
+    token,
+    isAuthenticated,
+  } = useAuth();
 
-  const unreadCount =
-    isAuthenticated && user?.studentId
-      ? notifications.filter(
-          (notification) =>
-            notification.studentId === user.studentId &&
-            !notification.isRead
-        ).length
-      : 0;
+  const [unreadCount, setUnreadCount] =
+    useState(0);
+
+  const loadUnreadCount = async () => {
+    if (
+      !isAuthenticated ||
+      !token
+    ) {
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const data = await apiRequest(
+        '/api/notifications',
+        {
+          method: 'GET',
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+      setUnreadCount(
+        Number(data.unreadCount) || 0
+      );
+    } catch (error) {
+      console.error(
+        'Unable to load notification count:',
+        error
+      );
+
+      setUnreadCount(0);
+    }
+  };
+
+  useEffect(() => {
+    loadUnreadCount();
+  }, [
+    token,
+    isAuthenticated,
+    pathname,
+  ]);
 
   const openNotifications = () => {
     if (!isAuthenticated) {
@@ -55,7 +102,9 @@ export default function NotificationBell() {
       {unreadCount > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {unreadCount > 99
+              ? '99+'
+              : unreadCount}
           </Text>
         </View>
       ) : null}

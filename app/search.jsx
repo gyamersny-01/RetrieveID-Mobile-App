@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,22 +21,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
 import { COLORS, RADIUS } from '../constants/theme';
 
-import {
-  useAppData,
-} from '../context/AppDataContext';
+
 import { useAuth } from '../context/AuthContext';
+
+import { apiRequest } from '../services/api';
 
 export default function SearchScreen() {
   const router = useRouter();
   const {
-    isAuthenticated,
-    isAuthReady,
-  } = useAuth();
+  token,
+  isAuthenticated,
+  isAuthReady,
+} = useAuth();
 
 
-  const {
-  findReportByStudentId,
-} = useAppData();
+  
   const [studentId, setStudentId] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -50,50 +50,90 @@ export default function SearchScreen() {
     }
   };
 
-  const handleSearch = () => {
-    if (!studentId) {
-      setError('Please enter your Student ID number.');
-      return;
-    }
+  const handleSearch = async () => {
+  if (!studentId) {
+    setError(
+      'Please enter your Student ID number.'
+    );
+    return;
+  }
 
-    if (!/^\d{8}$/.test(studentId)) {
-      setError('Student ID must contain exactly 8 digits.');
-      return;
-    }
+  if (!/^\d{8}$/.test(studentId)) {
+    setError(
+      'Student ID must contain exactly 8 digits.'
+    );
+    return;
+  }
 
-    setError('');
-    setIsSearching(true);
+  if (!token) {
+    Alert.alert(
+      'Authentication Required',
+      'Please log in again before searching.'
+    );
+    return;
+  }
 
-    setTimeout(() => {
-      const matchingRecord =
-            findReportByStudentId(studentId);
+  setError('');
+  setIsSearching(true);
 
-      setIsSearching(false);
+  try {
+    const data = await apiRequest(
+      `/api/reports/search/${studentId}`,
+      {
+        method: 'GET',
 
-      if (matchingRecord) {
-        router.push({
-          pathname: '/search-found',
-          params: {
-            reportId: matchingRecord.id,
-            studentId: matchingRecord.studentId,
-            retrievalLocation: matchingRecord.retrievalLocation,
-            foundLocation: matchingRecord.foundLocation,
-            dateReported: matchingRecord.dateReported,
-            status: matchingRecord.status,
-          },
-        });
-
-        return;
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
       }
+    );
 
+    const report = data.report;
+
+    const displayStatus =
+      report.status ===
+      'AWAITING_COLLECTION'
+        ? 'Awaiting collection'
+        : report.status === 'COLLECTED'
+          ? 'Collected'
+          : report.status;
+
+    router.push({
+      pathname: '/search-found',
+      params: {
+        reportId: report.id,
+        studentId: report.studentId,
+        retrievalLocation:
+          report.retrievalLocation,
+        foundLocation:
+          report.foundLocation,
+        dateReported:
+          report.createdAt,
+        status: displayStatus,
+      },
+    });
+  } catch (error) {
+    if (error.status === 404) {
       router.push({
         pathname: '/search-not-found',
         params: {
           studentId,
         },
       });
-    }, 900);
-  };
+
+      return;
+    }
+
+    Alert.alert(
+      'Search Failed',
+      error.message ||
+        'Unable to search for the Student ID. Please try again.'
+    );
+  } finally {
+    setIsSearching(false);
+  }
+};
 
   if (!isAuthReady) {
   return null;

@@ -33,19 +33,17 @@ import {
   formatDistance,
 } from '../../utils/locationUtils';
 
-import {
-  useAppData,
-} from '../../context/AppDataContext';
+import { useAuth } from '../../context/AuthContext';
+import { apiRequest } from '../../services/api';
 
 
 
 export default function ReportScreen() {
   const router = useRouter();
 
-  const {
-  addReport,
-  createNotification,
-} = useAppData();
+  const { token } = useAuth();
+
+
   const [photo, setPhoto] = useState(null);
   const [studentId, setStudentId] = useState('');
   const [confirmStudentId, setConfirmStudentId] = useState('');
@@ -57,6 +55,8 @@ export default function ReportScreen() {
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [errors, setErrors] = useState({});
   const [isLocating, setIsLocating] = useState(false);
+  const [isSubmitting, setIsSubmitting] =
+  useState(false);
 
   const clearError = (field) => {
     setErrors((currentErrors) => ({
@@ -243,60 +243,79 @@ export default function ReportScreen() {
 };
 
   const validateForm = () => {
-    const nextErrors = {};
+  const nextErrors = {};
 
-    if (!photo) {
-      nextErrors.photo = 'Please upload a clear photo of the ID.';
-    }
+  if (!photo) {
+    nextErrors.photo =
+      'Please upload a clear photo of the ID.';
+  }
 
-    if (!/^\d{8}$/.test(studentId)) {
-      nextErrors.studentId =
-        'Student ID must contain exactly 8 digits.';
-    }
+  if (!/^\d{8}$/.test(studentId)) {
+    nextErrors.studentId =
+      'Student ID must contain exactly 8 digits.';
+  }
 
-    if (!confirmStudentId) {
-      nextErrors.confirmStudentId =
-        'Please confirm the Student ID number.';
-    } else if (studentId !== confirmStudentId) {
-      nextErrors.confirmStudentId =
-        'The Student ID numbers do not match.';
-    }
+  if (!confirmStudentId) {
+    nextErrors.confirmStudentId =
+      'Please confirm the Student ID number.';
+  } else if (
+    studentId !== confirmStudentId
+  ) {
+    nextErrors.confirmStudentId =
+      'The Student ID numbers do not match.';
+  }
 
-    const contactDigits = contact.replace(/\D/g, '');
+  if (!foundLocation.trim()) {
+    nextErrors.foundLocation =
+      'Please enter where the Student ID was found.';
+  }
 
-    if (!contact) {
-      nextErrors.contact = 'Please enter your contact number.';
-    } else if (
-      contactDigits.length < 10 ||
-      contactDigits.length > 15
-    ) {
-      nextErrors.contact =
-        'Please enter a valid contact number.';
-    }
+  const contactDigits =
+    contact.replace(/\D/g, '');
 
-    if (
-      email.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-    ) {
-      nextErrors.email = 'Please enter a valid email address.';
-    }
+  if (!contact) {
+    nextErrors.contact =
+      'Please enter your contact number.';
+  } else if (
+    contactDigits.length < 10 ||
+    contactDigits.length > 15
+  ) {
+    nextErrors.contact =
+      'Please enter a valid contact number.';
+  }
 
-    if (!retrievalLocation) {
-      nextErrors.retrievalLocation =
-        'Please select a retrieval location.';
-    }
+  if (
+    email.trim() &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      email.trim()
+    )
+  ) {
+    nextErrors.email =
+      'Please enter a valid email address.';
+  }
 
-    if (!confirmed) {
-      nextErrors.confirmed =
-        'You must confirm that you will submit the physical ID.';
-    }
+  if (!retrievalLocation) {
+    nextErrors.retrievalLocation =
+      'Please select a retrieval location.';
+  }
 
-    setErrors(nextErrors);
+  if (!confirmed) {
+    nextErrors.confirmed =
+      'You must confirm that you will submit the physical ID.';
+  }
 
-    return Object.keys(nextErrors).length === 0;
-  };
+  setErrors(nextErrors);
 
-  const submitReport = () => {
+  return (
+    Object.keys(nextErrors).length === 0
+  );
+};
+
+  const submitReport = async () => {
+  if (isSubmitting) {
+    return;
+  }
+
   const formIsValid = validateForm();
 
   if (!formIsValid) {
@@ -308,28 +327,147 @@ export default function ReportScreen() {
     return;
   }
 
-  const newReport = addReport({
-    studentId,
-    retrievalLocation,
-    foundLocation,
-    imageUri: photo?.uri,
-    finderContact: contact,
-    finderEmail: email,
-  });
+  if (!token) {
+    Alert.alert(
+      'Authentication Required',
+      'Please log in again before submitting a report.'
+    );
 
-  createNotification({
-    studentId,
-    report: newReport,
-  });
+    return;
+  }
 
-  router.replace({
-    pathname: '/report-submitted',
-    params: {
-      from: 'report',
-      location: retrievalLocation,
-      studentId,
-    },
-  });
+  if (!photo?.uri) {
+    Alert.alert(
+      'Photo Required',
+      'Please upload a clear photo of the Student ID.'
+    );
+
+    return;
+  }
+
+  try {
+    setIsSubmitting(true);
+
+    // STEP 1:
+    // Prepare the selected image for upload.
+
+    const formData = new FormData();
+
+    const fileName =
+      photo.fileName ||
+      `student-id-${Date.now()}.jpg`;
+
+    const lowerFileName =
+      fileName.toLowerCase();
+
+    const mimeType =
+      photo.mimeType ||
+      (lowerFileName.endsWith('.png')
+        ? 'image/png'
+        : lowerFileName.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg');
+
+    formData.append('image', {
+      uri: photo.uri,
+      name: fileName,
+      type: mimeType,
+    });
+
+    // STEP 2:
+    // Upload the image to the backend.
+    // The backend then uploads it to Cloudinary.
+
+    const uploadData = await apiRequest(
+      '/api/uploads/id-image',
+      {
+        method: 'POST',
+
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+
+        body: formData,
+      }
+    );
+
+
+    if (!uploadData?.image?.secureUrl) {
+      throw new Error(
+        'The Student ID image could not be uploaded.'
+      );
+    }
+
+    // STEP 3:
+    // Create the report in PostgreSQL
+    // using the uploaded image URL.
+
+    const data = await apiRequest(
+      '/api/reports',
+      {
+        method: 'POST',
+
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          studentId:
+            studentId.trim(),
+
+          foundLocation:
+            foundLocation.trim(),
+
+          retrievalLocation:
+            retrievalLocation.trim(),
+
+          finderContact:
+            contact.trim(),
+
+          imageUrl:
+            uploadData.image.secureUrl,
+
+          imagePublicId:
+            uploadData.image.publicId,
+        }),
+      }
+    );
+
+    // STEP 4:
+    // Open the success screen.
+
+    router.replace({
+      pathname: '/report-submitted',
+
+      params: {
+        from: 'report',
+
+        location:
+          data.report.retrievalLocation,
+
+        studentId:
+          data.report.studentId,
+
+        reportId:
+          data.report.id,
+      },
+    });
+  } catch (error) {
+    console.error(
+      'Unable to submit report:',
+      error
+    );
+
+    Alert.alert(
+      'Report Submission Failed',
+      error.message ||
+        'Unable to submit the report. Please try again.'
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
 };
 
   return (
@@ -478,11 +616,15 @@ export default function ReportScreen() {
             />
 
             <FormInput
-              label="Found Location (optional)"
+              label="Found Location"
               value={foundLocation}
-              onChangeText={setFoundLocation}
+              onChangeText={(value) => {
+                setFoundLocation(value);
+                clearError('foundLocation');
+              }}
               autoCapitalize="words"
               placeholder="e.g. Balme Library"
+              error={errors.foundLocation}
             />
           </View>
 
@@ -599,10 +741,14 @@ export default function ReportScreen() {
           ) : null}
 
           <AppButton
-            title="Submit Report"
-            onPress={submitReport}
-            style={styles.submit}
-          />
+          title={
+            isSubmitting
+              ? 'Submitting...'
+              : 'Submit Report'
+          }
+          onPress={submitReport}
+          style={styles.submit}
+        />
         </ScrollView>
       </KeyboardAvoidingView>
 

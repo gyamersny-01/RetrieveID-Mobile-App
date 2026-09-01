@@ -1,4 +1,10 @@
 import {
+  useEffect,
+  useState,
+} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,12 +20,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ScreenHeader from '../components/ScreenHeader';
-import {
-  useAppData,
-} from '../context/AppDataContext';
+
 import {
   useAuth,
 } from '../context/AuthContext';
+import { apiRequest } from '../services/api';
+
 import {
   COLORS,
   RADIUS,
@@ -28,36 +34,113 @@ import {
 export default function NotificationsScreen() {
   const router = useRouter();
   const {
-    user,
+    token,
     isAuthenticated,
     isAuthReady,
   } = useAuth();
 
-  const {
-    notifications,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
-  } = useAppData();
+  const [notifications, setNotifications] =
+    useState([]);
 
-  const studentId = user?.studentId;
+  const [isLoading, setIsLoading] =
+    useState(true);
 
-  const userNotifications = notifications.filter(
-    (notification) =>
-    studentId &&
-    notification.studentId === studentId
-  );
+  const [isMarkingAll, setIsMarkingAll] =
+    useState(false);
+  
+  const loadNotifications = async () => {
+  if (!token) {
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+
+    const data = await apiRequest(
+      '/api/notifications',
+      {
+        method: 'GET',
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+    setNotifications(
+      data.notifications || []
+    );
+  } catch (error) {
+    Alert.alert(
+      'Unable to Load Notifications',
+      error.message ||
+        'Please try again.'
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+useEffect(() => {
+  if (
+    isAuthReady &&
+    isAuthenticated &&
+    token
+  ) {
+    loadNotifications();
+  }
+}, [
+  isAuthReady,
+  isAuthenticated,
+  token,
+]);
+  
+
+  const userNotifications = notifications;
 
   const unreadCount = userNotifications.filter(
     (notification) => !notification.isRead
   ).length;
 
-  const openNotification = (notification) => {
-    markNotificationAsRead(notification.id);
+  const openNotification = async (
+  notification
+) => {
+  try {
+    if (!notification.isRead) {
+      await apiRequest(
+        `/api/notifications/${notification.id}/read`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+      setNotifications(
+        (currentNotifications) =>
+          currentNotifications.map(
+            (item) =>
+              item.id === notification.id
+                ? {
+                    ...item,
+                    isRead: true,
+                    readAt:
+                      new Date().toISOString(),
+                  }
+                : item
+          )
+      );
+    }
 
     router.push({
       pathname: '/search-found',
       params: {
-        studentId: notification.studentId,
+        reportId:
+          notification.reportId,
+        studentId:
+          notification.studentId,
         retrievalLocation:
           notification.retrievalLocation ||
           'Not provided',
@@ -65,16 +148,74 @@ export default function NotificationsScreen() {
           notification.foundLocation ||
           'Not provided',
         dateReported:
-          notification.createdAt ||
+          notification.dateReported ||
           'Not provided',
         status:
-          notification.status ||
-          'Awaiting collection',
-        reportId:
-          notification.reportId || '',
+          notification.status ===
+          'AWAITING_COLLECTION'
+            ? 'Awaiting collection'
+            : notification.status ===
+                'COLLECTED'
+              ? 'Collected'
+              : notification.status,
       },
     });
-  };
+  } catch (error) {
+    Alert.alert(
+      'Unable to Open Notification',
+      error.message ||
+        'Please try again.'
+    );
+  }
+};
+
+const handleMarkAllAsRead = async () => {
+  if (
+    unreadCount === 0 ||
+    isMarkingAll
+  ) {
+    return;
+  }
+
+  try {
+    setIsMarkingAll(true);
+
+    await apiRequest(
+      '/api/notifications/read-all',
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+    const readTime =
+      new Date().toISOString();
+
+    setNotifications(
+      (currentNotifications) =>
+        currentNotifications.map(
+          (notification) => ({
+            ...notification,
+            isRead: true,
+            readAt:
+              notification.readAt ||
+              readTime,
+          })
+        )
+    );
+  } catch (error) {
+    Alert.alert(
+      'Unable to Update Notifications',
+      error.message ||
+        'Please try again.'
+    );
+  } finally {
+    setIsMarkingAll(false);
+  }
+};
 
   if (!isAuthReady) {
   return null;
@@ -82,6 +223,26 @@ export default function NotificationsScreen() {
 
 if (!isAuthenticated) {
   return <Redirect href="/welcome" />;
+}
+
+if (
+  isAuthenticated &&
+  isLoading
+) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator
+          size="large"
+          color={COLORS.primary}
+        />
+
+        <Text style={styles.loadingText}>
+          Loading notifications...
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
 }
 
   return (
@@ -108,12 +269,12 @@ if (!isAuthenticated) {
 
           {unreadCount > 0 ? (
             <Pressable
-                onPress={() =>
-                  markAllNotificationsAsRead(user?.studentId)
-                }
+                onPress={handleMarkAllAsRead}
               >
               <Text style={styles.markAllText}>
-                Mark all as read
+                {isMarkingAll
+                  ? 'Updating...'
+                  : 'Mark all as read'}
               </Text>
             </Pressable>
           ) : null}
@@ -318,4 +479,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 9,
   },
+
+  loadingContainer: {
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
+loadingText: {
+  color: COLORS.muted,
+  fontSize: 14,
+  marginTop: 12,
+},
 });

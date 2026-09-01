@@ -6,21 +6,18 @@ import {
   useState,
 } from 'react';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+
+import { apiRequest } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const AUTH_STORAGE_KEY = '@retrieveid_auth_session';
-
-const defaultUser = {
-  fullName: 'Sonny Gyamerah',
-  studentId: '11124499',
-  email: 'sonnygyamerah69@gmail.com',
-  phone: '0234567891',
-};
+const AUTH_STORAGE_KEY =
+  'retrieveid_auth_session';
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(defaultUser);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
 
   const [isAuthenticated, setIsAuthenticated] =
     useState(false);
@@ -28,140 +25,253 @@ export function AuthProvider({ children }) {
   const [isAuthReady, setIsAuthReady] =
     useState(false);
 
+  const saveSession = async (
+    authToken,
+    userData
+  ) => {
+    const session = {
+      token: authToken,
+      user: userData,
+    };
+
+    await SecureStore.setItemAsync(
+      AUTH_STORAGE_KEY,
+      JSON.stringify(session)
+    );
+  };
+
+  const clearSession = async () => {
+    await SecureStore.deleteItemAsync(
+      AUTH_STORAGE_KEY
+    );
+  };
+
   /*
-    Restore the previously saved user and login status
-    when the application starts.
+    Restore the saved token when the app starts.
+
+    We also ask the backend for /api/auth/me so that
+    an old, invalid, or expired token does not keep the
+    user logged in.
   */
   useEffect(() => {
-    const loadStoredAuthSession = async () => {
+    const restoreSession = async () => {
       try {
         const storedSession =
-          await AsyncStorage.getItem(
+          await SecureStore.getItemAsync(
             AUTH_STORAGE_KEY
           );
 
-        if (storedSession !== null) {
-          const parsedSession =
-            JSON.parse(storedSession);
+        if (!storedSession) {
+          return;
+        }
 
-          if (
-            parsedSession?.user &&
-            typeof parsedSession.user === 'object'
-          ) {
-            setUser(parsedSession.user);
+        const parsedSession =
+          JSON.parse(storedSession);
+
+        const storedToken =
+          parsedSession?.token;
+
+        if (!storedToken) {
+          await clearSession();
+          return;
+        }
+
+        const data = await apiRequest(
+          '/api/auth/me',
+          {
+            method: 'GET',
+            headers: {
+              Authorization:
+                `Bearer ${storedToken}`,
+            },
           }
+        );
 
-          setIsAuthenticated(
-            parsedSession?.isAuthenticated === true
+        setToken(storedToken);
+        setUser(data.user);
+        setIsAuthenticated(true);
+
+        await saveSession(
+          storedToken,
+          data.user
+        );
+      } catch (error) {
+        console.log(
+          'Stored authentication session is no longer valid.'
+        );
+
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+
+        try {
+          await clearSession();
+        } catch (storageError) {
+          console.error(
+            'Unable to clear authentication session:',
+            storageError
           );
         }
-      } catch (error) {
-        console.error(
-          'Unable to load authentication session:',
-          error
-        );
       } finally {
         setIsAuthReady(true);
       }
     };
 
-    loadStoredAuthSession();
+    restoreSession();
   }, []);
 
   /*
-    Save changes to the user profile and login status.
-    The readiness check prevents the initial values from
-    replacing saved data before loading finishes.
+    Register the account in PostgreSQL.
+
+    Our current registration API creates the user but
+    does not return a JWT, so we immediately log in
+    afterward to obtain the token.
   */
-  useEffect(() => {
-    if (!isAuthReady) {
-      return;
-    }
-
-    const saveAuthSession = async () => {
-      try {
-        const session = {
-          user,
-          isAuthenticated,
-        };
-
-        await AsyncStorage.setItem(
-          AUTH_STORAGE_KEY,
-          JSON.stringify(session)
-        );
-      } catch (error) {
-        console.error(
-          'Unable to save authentication session:',
-          error
-        );
-      }
-    };
-
-    saveAuthSession();
-  }, [user, isAuthenticated, isAuthReady]);
-
-  const register = ({
+  const register = async ({
     fullName,
     studentId,
     email,
     phone,
+    password,
   }) => {
-    const newUser = {
-      fullName: fullName.trim(),
-      studentId: studentId.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone?.trim() || '',
-    };
+    const normalizedEmail =
+      email.trim().toLowerCase();
 
-    setUser(newUser);
+    await apiRequest(
+      '/api/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          studentId: studentId.trim(),
+          email: normalizedEmail,
+          phone: phone.trim(),
+          password,
+        }),
+      }
+    );
+
+    const loginData = await apiRequest(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
+      }
+    );
+
+    setToken(loginData.token);
+    setUser(loginData.user);
     setIsAuthenticated(true);
 
-    return newUser;
+    await saveSession(
+      loginData.token,
+      loginData.user
+    );
+
+    return loginData.user;
   };
 
-  const login = () => {
-    /*
-      Temporary frontend login behaviour.
+  /*
+    Login using the real Express/PostgreSQL backend.
+  */
+  const login = async ({
+    email,
+    password,
+  }) => {
+    const data = await apiRequest(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          email: email
+            .trim()
+            .toLowerCase(),
+          password,
+        }),
+      }
+    );
 
-      The backend will later verify the user's
-      email and password before allowing access.
-    */
-
+    setToken(data.token);
+    setUser(data.user);
     setIsAuthenticated(true);
+
+    await saveSession(
+      data.token,
+      data.user
+    );
+
+    return data.user;
   };
 
-  const updateProfile = (updatedDetails) => {
-    setUser((currentUser) => ({
-      ...currentUser,
-      ...updatedDetails,
-      fullName:
-        updatedDetails.fullName !== undefined
-          ? updatedDetails.fullName.trim()
-          : currentUser.fullName,
-      studentId:
-        updatedDetails.studentId !== undefined
-          ? updatedDetails.studentId.trim()
-          : currentUser.studentId,
-      email:
-        updatedDetails.email !== undefined
-          ? updatedDetails.email
-              .trim()
-              .toLowerCase()
-          : currentUser.email,
-      phone:
-        updatedDetails.phone !== undefined
-          ? updatedDetails.phone.trim()
-          : currentUser.phone,
-    }));
-  };
+  /*
+    Temporary profile update.
 
-  const logout = () => {
+    We will connect this to PostgreSQL with a profile
+    update API shortly.
+  */
+  const updateProfile = async ({
+  fullName,
+  email,
+  phone,
+}) => {
+  if (!token) {
+    throw new Error(
+      'You are not authenticated.'
+    );
+  }
+
+  const data = await apiRequest(
+    '/api/auth/me',
+    {
+      method: 'PATCH',
+
+      headers: {
+        Authorization:
+          `Bearer ${token}`,
+      },
+
+      body: JSON.stringify({
+        fullName: fullName.trim(),
+        email: email
+          .trim()
+          .toLowerCase(),
+        phone: phone.trim(),
+      }),
+    }
+  );
+
+  setUser(data.user);
+
+  await saveSession(
+    token,
+    data.user
+  );
+
+  return data.user;
+};
+
+  const logout = async () => {
+    setToken(null);
+    setUser(null);
     setIsAuthenticated(false);
+
+    try {
+      await clearSession();
+    } catch (error) {
+      console.error(
+        'Unable to clear authentication session:',
+        error
+      );
+    }
   };
 
   const value = useMemo(
     () => ({
       user,
+      token,
       isAuthenticated,
       isAuthReady,
       register,
@@ -171,6 +281,7 @@ export function AuthProvider({ children }) {
     }),
     [
       user,
+      token,
       isAuthenticated,
       isAuthReady,
     ]
