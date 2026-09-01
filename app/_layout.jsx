@@ -9,10 +9,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { COLORS } from '../constants/theme';
-import {
-  AppDataProvider,
-  useAppData,
-} from '../context/AppDataContext';
+
 import {
   AuthProvider,
   useAuth,
@@ -20,13 +17,8 @@ import {
 
 function AppNavigator() {
   const { isAuthReady } = useAuth();
-  const { isDataReady } = useAppData();
-  
 
-  const isAppReady =
-    isAuthReady && isDataReady;
-
-  if (!isAppReady) {
+  if (!isAuthReady) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar style="dark" />
@@ -58,9 +50,11 @@ function AppNavigator() {
         screenOptions={{
           headerShown: false,
           contentStyle: {
-            backgroundColor: COLORS.background,
+            backgroundColor:
+              COLORS.background,
           },
-          animation: 'slide_from_right',
+          animation:
+            'slide_from_right',
         }}
       />
     </>
@@ -70,9 +64,7 @@ function AppNavigator() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <AppDataProvider>
-        <AppNavigator />
-      </AppDataProvider>
+      <AppNavigator />
     </AuthProvider>
   );
 }

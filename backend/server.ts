@@ -695,6 +695,7 @@ app.post(
         imageUrl,
         imagePublicId,
         finderContact,
+        finderEmail,
       } = req.body;
 
 
@@ -724,6 +725,24 @@ app.post(
             'Student ID must contain exactly 8 digits.',
         });
       }
+      
+      const normalizedFinderEmail =
+  typeof finderEmail === 'string'
+    ? finderEmail.trim().toLowerCase()
+    : '';
+
+if (
+  normalizedFinderEmail &&
+  !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    normalizedFinderEmail
+  )
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      'Please provide a valid finder email address.',
+  });
+}
 
       const result =
         await prisma.$transaction(
@@ -749,6 +768,11 @@ app.post(
                       'string' &&
                     finderContact.trim()
                       ? finderContact.trim()
+                      : null,
+
+                  finderEmail:
+                    normalizedFinderEmail
+                      ? normalizedFinderEmail
                       : null,
 
                   imageUrl:
@@ -835,16 +859,15 @@ app.post(
             result.report
               .retrievalLocation,
 
-          imageUrl:
-            result.report.imageUrl,
-
-          imagePublicId:
-            result.report
-              .imagePublicId,
+          
 
           finderContact:
             result.report
               .finderContact,
+            
+          finderEmail:
+            result.report
+              .finderEmail,
 
           status:
             result.report.status,
@@ -1008,7 +1031,7 @@ app.get(
             studentId: true,
             foundLocation: true,
             retrievalLocation: true,
-            imageUrl: true,
+            
             status: true,
             createdAt: true,
           },

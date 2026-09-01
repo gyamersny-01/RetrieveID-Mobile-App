@@ -35,6 +35,7 @@ model Report {
   imageUrl          String?
   imagePublicId     String?
   finderContact     String?
+  finderEmail       String?
   status            ReportStatus @default(AWAITING_COLLECTION)
   collectedAt       DateTime?
   createdAt         DateTime     @default(now())

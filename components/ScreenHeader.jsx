@@ -1,4 +1,9 @@
 import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
   Pressable,
   StyleSheet,
   Text,
@@ -6,11 +11,14 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import {
+  usePathname,
+  useRouter,
+} from 'expo-router';
 
 import { COLORS } from '../constants/theme';
-import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
+import { apiRequest } from '../services/api';
 
 export default function ScreenHeader({
   title,
@@ -18,20 +26,75 @@ export default function ScreenHeader({
   showBell = true,
 }) {
   const router = useRouter();
+  const pathname = usePathname();
 
-  const { notifications } = useAppData();
-  const { user, isAuthenticated } = useAuth();
+  const {
+    token,
+    isAuthenticated,
+  } = useAuth();
 
-  const unreadCount = isAuthenticated
-    ? notifications.filter(
-        (notification) =>
-          notification.studentId === user.studentId &&
-          !notification.isRead
-      ).length
-    : 0;
+  const [unreadCount, setUnreadCount] =
+    useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUnreadCount = async () => {
+      if (
+        !isAuthenticated ||
+        !token
+      ) {
+        if (isMounted) {
+          setUnreadCount(0);
+        }
+
+        return;
+      }
+
+      try {
+        const data = await apiRequest(
+          '/api/notifications',
+          {
+            method: 'GET',
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (isMounted) {
+          setUnreadCount(
+            data.unreadCount || 0
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Unable to load notification count:',
+          error
+        );
+
+        if (isMounted) {
+          setUnreadCount(0);
+        }
+      }
+    };
+
+    loadUnreadCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    token,
+    isAuthenticated,
+    pathname,
+  ]);
 
   const badgeText =
-    unreadCount > 99 ? '99+' : unreadCount.toString();
+    unreadCount > 99
+      ? '99+'
+      : unreadCount.toString();
 
   const openNotifications = () => {
     if (!isAuthenticated) {
@@ -47,7 +110,9 @@ export default function ScreenHeader({
       <View style={styles.side}>
         {showBack ? (
           <Pressable
-            onPress={() => router.back()}
+            onPress={() =>
+              router.back()
+            }
             hitSlop={12}
           >
             <Ionicons
@@ -59,13 +124,22 @@ export default function ScreenHeader({
         ) : null}
       </View>
 
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title}>
+        {title}
+      </Text>
 
-      <View style={[styles.side, styles.right]}>
+      <View
+        style={[
+          styles.side,
+          styles.right,
+        ]}
+      >
         {showBell ? (
           <Pressable
             style={styles.bellButton}
-            onPress={openNotifications}
+            onPress={
+              openNotifications
+            }
             hitSlop={12}
           >
             <Ionicons
@@ -79,8 +153,14 @@ export default function ScreenHeader({
             />
 
             {unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
+              <View
+                style={styles.badge}
+              >
+                <Text
+                  style={
+                    styles.badgeText
+                  }
+                >
                   {badgeText}
                 </Text>
               </View>
@@ -128,11 +208,13 @@ const styles = StyleSheet.create({
     height: 18,
     paddingHorizontal: 4,
     borderRadius: 9,
-    backgroundColor: COLORS.danger,
+    backgroundColor:
+      COLORS.danger,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: COLORS.background,
+    borderColor:
+      COLORS.background,
   },
 
   badgeText: {

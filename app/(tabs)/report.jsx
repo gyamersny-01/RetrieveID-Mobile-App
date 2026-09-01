@@ -426,6 +426,9 @@ export default function ReportScreen() {
           finderContact:
             contact.trim(),
 
+          finderEmail: 
+            email.trim(),
+
           imageUrl:
             uploadData.image.secureUrl,
 
