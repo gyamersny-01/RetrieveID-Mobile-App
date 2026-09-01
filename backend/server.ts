@@ -1101,6 +1101,7 @@ app.patch(
             id: true,
             studentId: true,
             status: true,
+            createdAt: true,
           },
         });
 
@@ -1130,15 +1131,22 @@ app.patch(
         });
       }
 
+      const collectedAt = new Date();
+
+const result =
+  await prisma.$transaction(
+    async (tx) => {
       const updatedReport =
-        await prisma.report.update({
+        await tx.report.update({
           where: {
             id: reportId,
           },
+
           data: {
             status: 'COLLECTED',
-            collectedAt: new Date(),
+            collectedAt,
           },
+
           select: {
             id: true,
             studentId: true,
@@ -1150,12 +1158,50 @@ app.patch(
           },
         });
 
+      const olderReports =
+        await tx.report.updateMany({
+          where: {
+            studentId:
+              report.studentId,
+
+            status:
+              'AWAITING_COLLECTION',
+
+            createdAt: {
+              lte: report.createdAt,
+            },
+
+            NOT: {
+              id: reportId,
+            },
+          },
+
+          data: {
+            status: 'COLLECTED',
+            collectedAt,
+          },
+        });
+
+      return {
+        updatedReport,
+        olderReportsClosed:
+          olderReports.count,
+      };
+    }
+  );
+
       return res.status(200).json({
-        success: true,
-        message:
-          'Student ID marked as collected successfully.',
-        report: updatedReport,
-      });
+  success: true,
+
+  message:
+    'Student ID marked as collected successfully.',
+
+  report:
+    result.updatedReport,
+
+  olderReportsClosed:
+    result.olderReportsClosed,
+});
     } catch (error) {
       console.error(
         'Collect report error:',
