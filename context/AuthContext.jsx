@@ -96,9 +96,7 @@ export function AuthProvider({ children }) {
           data.user
         );
       } catch (error) {
-        console.log(
-          'Stored authentication session is no longer valid.'
-        );
+
 
         setToken(null);
         setUser(null);

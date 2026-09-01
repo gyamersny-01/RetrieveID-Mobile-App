@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
 } from 'react';
@@ -32,7 +33,8 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] =
     useState(0);
 
-  const loadUnreadCount = async () => {
+  const loadUnreadCount = useCallback(
+  async () => {
     if (
       !isAuthenticated ||
       !token
@@ -54,7 +56,7 @@ export default function NotificationBell() {
       );
 
       setUnreadCount(
-        Number(data.unreadCount) || 0
+        data.unreadCount || 0
       );
     } catch (error) {
       console.error(
@@ -64,15 +66,19 @@ export default function NotificationBell() {
 
       setUnreadCount(0);
     }
-  };
-
-  useEffect(() => {
-    loadUnreadCount();
-  }, [
+  },
+  [
     token,
     isAuthenticated,
-    pathname,
-  ]);
+  ]
+);
+
+  useEffect(() => {
+  loadUnreadCount();
+}, [
+  loadUnreadCount,
+  pathname,
+]);
 
   const openNotifications = () => {
     if (!isAuthenticated) {

@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
 } from 'react';
@@ -48,38 +49,41 @@ export default function NotificationsScreen() {
   const [isMarkingAll, setIsMarkingAll] =
     useState(false);
   
-  const loadNotifications = async () => {
-  if (!token) {
-    return;
-  }
+  const loadNotifications = useCallback(
+  async () => {
+    if (!token) {
+      return;
+    }
 
-  try {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    const data = await apiRequest(
-      '/api/notifications',
-      {
-        method: 'GET',
-        headers: {
-          Authorization:
-            `Bearer ${token}`,
-        },
-      }
-    );
+      const data = await apiRequest(
+        '/api/notifications',
+        {
+          method: 'GET',
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
 
-    setNotifications(
-      data.notifications || []
-    );
-  } catch (error) {
-    Alert.alert(
-      'Unable to Load Notifications',
-      error.message ||
-        'Please try again.'
-    );
-  } finally {
-    setIsLoading(false);
-  }
-};
+      setNotifications(
+        data.notifications || []
+      );
+    } catch (error) {
+      Alert.alert(
+        'Unable to Load Notifications',
+        error.message ||
+          'Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  },
+  [token]
+);
 
 useEffect(() => {
   if (
@@ -93,6 +97,7 @@ useEffect(() => {
   isAuthReady,
   isAuthenticated,
   token,
+  loadNotifications,
 ]);
   
 
