@@ -13,6 +13,7 @@ import jwt, {
 } from 'jsonwebtoken';
 
 import multer from 'multer';
+import nodemailer from 'nodemailer';
 import {
   v2 as cloudinary,
   type UploadApiResponse,
@@ -37,6 +38,17 @@ if (!process.env.JWT_SECRET) {
   );
 }
 
+
+if (
+  !process.env.EMAIL_USER ||
+  !process.env.EMAIL_APP_PASSWORD
+) {
+  throw new Error(
+    'Email environment variables are required.'
+  );
+}
+
+
 if (
   !process.env.CLOUDINARY_CLOUD_NAME ||
   !process.env.CLOUDINARY_API_KEY ||
@@ -59,6 +71,56 @@ cloudinary.config({
 
   secure: true,
 });
+
+
+const emailTransporter =
+  nodemailer.createTransport({
+    service: 'gmail',
+
+    auth: {
+      user:
+        process.env.EMAIL_USER,
+
+      pass:
+        process.env.EMAIL_APP_PASSWORD,
+    },
+  });
+
+
+  async function sendFoundIdEmail({
+  to,
+  fullName,
+  studentId,
+  foundLocation,
+  retrievalLocation,
+}: {
+  to: string;
+  fullName: string;
+  studentId: string;
+  foundLocation: string;
+  retrievalLocation: string;
+}) {
+  await emailTransporter.sendMail({
+    from: {
+      name: 'RetrieveID',
+      address:
+        process.env.EMAIL_USER as string,
+    },
+
+    to,
+
+    subject:
+      'Your Student ID has been found',
+
+    text:
+      `Hello ${fullName},\n\n` +
+      `Good news! Your Student ID (${studentId}) has been reported as found.\n\n` +
+      `Found location: ${foundLocation}\n` +
+      `Retrieval location: ${retrievalLocation}\n\n` +
+      `Please open RetrieveID to view the report details and collect your Student ID from the selected retrieval location.\n\n` +
+      `RetrieveID`,
+  });
+}
 
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -804,6 +866,8 @@ if (
                 select: {
                   id: true,
                   fullName: true,
+                  email: true,
+                  phone: true,
                 },
               });
 
@@ -835,9 +899,41 @@ if (
             return {
               report,
               notification,
+              owner,
             };
           }
         );
+
+      let emailSent = false;
+
+      if (result.owner) {
+        try {
+          await sendFoundIdEmail({
+            to: result.owner.email,
+
+            fullName:
+              result.owner.fullName,
+
+            studentId:
+              result.report.studentId,
+
+            foundLocation:
+              result.report.foundLocation,
+
+            retrievalLocation:
+              result.report
+                .retrievalLocation,
+          });
+
+          emailSent = true;
+        } catch (error) {
+          console.error(
+            'Found ID email error:',
+            error
+          );
+        }
+      }
+
 
       return res.status(201).json({
         success: true,
@@ -880,6 +976,8 @@ if (
           Boolean(
             result.notification
           ),
+        
+        emailSent,
       });
     } catch (error) {
       console.error(
@@ -1563,6 +1661,9 @@ app.patch(
     }
   }
 );
+
+
+
 
 
 

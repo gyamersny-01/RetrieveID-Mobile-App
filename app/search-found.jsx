@@ -40,6 +40,42 @@ function getParamValue(value) {
   return value;
 }
 
+  function formatDate(value) {
+  if (!value || value === 'Not available') {
+    return 'Not available';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+  function formatStatus(value) {
+  if (
+    value === 'AWAITING_COLLECTION' ||
+    value === 'Awaiting collection'
+  ) {
+    return 'Awaiting collection';
+  }
+
+  if (
+    value === 'COLLECTED' ||
+    value === 'Collected'
+  ) {
+    return 'Collected';
+  }
+
+  return value || 'Awaiting collection';
+}
+
 export default function SearchFoundScreen() {
   const params = useLocalSearchParams();
   const {
@@ -66,13 +102,16 @@ const foundLocation =
   getParamValue(params.foundLocation) ||
   'Not provided';
 
+const rawDateReported =
+  getParamValue(params.dateReported);
+
 const dateReported =
-  getParamValue(params.dateReported) ||
-  'Not available';
+  formatDate(rawDateReported);
 
 const initialStatus =
-  getParamValue(params.status) ||
-  'Awaiting collection';
+  formatStatus(
+    getParamValue(params.status)
+  );
 
 const [status, setStatus] =
   useState(initialStatus);
@@ -377,7 +416,7 @@ if (!isAuthenticated) {
 
           <DetailRow
             icon="navigate-outline"
-            label="Found At"
+            label="Found Location"
             value={foundLocation}
           />
 
@@ -508,7 +547,7 @@ const styles = StyleSheet.create({
 
   successIcon: {
     alignItems: 'center',
-    marginTop: 36,
+    marginTop: 28,
   },
 
   collectedIcon: {
@@ -640,7 +679,7 @@ imageSectionTitle: {
 
 imageCard: {
   width: '100%',
-  minHeight: 220,
+  minHeight: 200,
   backgroundColor: COLORS.surface,
   borderWidth: 1,
   borderColor: COLORS.border,
@@ -652,7 +691,7 @@ imageCard: {
 
 idImage: {
   width: '100%',
-  height: 240,
+  height: 210,
 },
 
 imageLoadingBox: {

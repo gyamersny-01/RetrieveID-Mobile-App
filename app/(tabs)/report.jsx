@@ -485,7 +485,10 @@ export default function ReportScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <ScreenHeader title="Report" />
+          <ScreenHeader
+          title="Report"
+          showBack={false}
+        />
 
           <Text style={styles.heading}>
             Help a Student Recover their ID
@@ -537,7 +540,7 @@ export default function ReportScreen() {
                   </Text>
 
                   <Text style={styles.uploadHint}>
-                    Take a clear photo of the front of the ID card.
+                    Take or upload a clear photo of the front of the ID card.
                   </Text>
 
                   <View style={styles.uploadButton}>
@@ -595,7 +598,7 @@ export default function ReportScreen() {
             />
 
             <FormInput
-              label="Your Contact"
+              label="Your Phone Number"
               value={contact}
               onChangeText={handleContactChange}
               keyboardType="phone-pad"
@@ -605,7 +608,7 @@ export default function ReportScreen() {
             />
 
             <FormInput
-              label="Your Email (optional)"
+              label="Your Email (Optional)"
               value={email}
               onChangeText={(value) => {
                 setEmail(value);
@@ -843,9 +846,10 @@ const styles = StyleSheet.create({
   },
 
   heading: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: COLORS.text,
+  fontSize: 18,
+  lineHeight: 24,
+  fontWeight: '600',
+  color: COLORS.text,
   },
 
   intro: {
@@ -857,7 +861,7 @@ const styles = StyleSheet.create({
   },
 
   photoSection: {
-    marginTop: 38,
+  marginTop: 30,
   },
 
   uploadBox: {
@@ -949,17 +953,17 @@ const styles = StyleSheet.create({
   },
 
   fields: {
-    gap: 24,
-    marginTop: 38,
+  gap: 22,
+  marginTop: 32,
   },
 
   locationCard: {
-    marginTop: 38,
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: RADIUS.large,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'transparent',
+  marginTop: 32,
+  backgroundColor: COLORS.primaryLight,
+  borderRadius: RADIUS.large,
+  padding: 20,
+  borderWidth: 1,
+  borderColor: 'transparent',
   },
 
   locationCardError: {

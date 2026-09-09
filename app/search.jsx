@@ -226,8 +226,7 @@ if (!isAuthenticated) {
               </Text>
 
               <Text style={styles.tipText}>
-                Registered users will receive a notification when
-                their linked Student ID is reported as found.
+                You’ll receive a notification automatically when your linked Student ID is reported as found.
               </Text>
             </View>
           </View>

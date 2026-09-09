@@ -67,11 +67,11 @@ if (!isAuthenticated) {
 
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>
-              Want to stay updated?
+              Stay updated automatically
             </Text>
 
             <Text style={styles.infoText}>
-              We will notify you automatically when your linked
+              You’ll receive a notification when your linked
               Student ID is reported as found.
             </Text>
           </View>
@@ -123,10 +123,10 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: COLORS.primaryLight,
     alignSelf: 'center',
-    marginTop: 55,
+    marginTop: 45,
     alignItems: 'center',
     justifyContent: 'center',
-  },
+},
 
   heading: {
     color: COLORS.text,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   searchAgainButton: {
     minHeight: 52,
     backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.small,
+    borderRadius: RADIUS.large,
     marginTop: 34,
     flexDirection: 'row',
     alignItems: 'center',
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
-    borderRadius: RADIUS.small,
+    borderRadius: RADIUS.large,
     marginTop: 14,
     alignItems: 'center',
     justifyContent: 'center',

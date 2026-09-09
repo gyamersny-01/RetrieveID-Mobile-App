@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   nearestButton: {
     minHeight: 52,
     backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.small,
+    borderRadius: RADIUS.large,
     marginTop: 27,
     paddingHorizontal: 17,
     flexDirection: 'row',
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     minHeight: 43,
     borderWidth: 1,
     borderColor: COLORS.primary,
-    borderRadius: RADIUS.small,
+    borderRadius: RADIUS.large,
     marginTop: 17,
     flexDirection: 'row',
     alignItems: 'center',

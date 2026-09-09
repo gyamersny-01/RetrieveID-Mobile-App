@@ -32,6 +32,27 @@ import {
   RADIUS,
 } from '../constants/theme';
 
+
+function formatNotificationDate(value) {
+  if (!value) {
+    return 'Date unavailable';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const {
@@ -343,7 +364,9 @@ if (
                   </Text>
 
                   <Text style={styles.notificationDate}>
-                    {notification.createdAt}
+                    {formatNotificationDate(
+                      notification.createdAt
+                    )}
                   </Text>
                 </View>
               </Pressable>
@@ -451,7 +474,7 @@ const styles = StyleSheet.create({
 
   notificationDate: {
     color: COLORS.muted,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 10,
   },
 

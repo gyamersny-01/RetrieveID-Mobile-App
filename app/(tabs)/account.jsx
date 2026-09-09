@@ -62,8 +62,8 @@ export default function AccountScreen() {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
-            logout();
+          onPress: async () => {
+            await logout();
             router.replace('/welcome');
           },
         },
@@ -77,7 +77,10 @@ export default function AccountScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader title="Account" />
+        <ScreenHeader
+        title="Account"
+        showBack={false}
+      />
 
         <View style={styles.profile}>
           <Ionicons
@@ -165,7 +168,7 @@ export default function AccountScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>
-          Account actions
+          Account Actions
         </Text>
 
         <View style={styles.menuCard}>
@@ -219,18 +222,19 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: '500',
     color: COLORS.text,
     marginTop: 30,
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
   infoCard: {
     backgroundColor: COLORS.cardGray,
     borderRadius: RADIUS.medium,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#2B9AF3',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
 
   infoRow: {

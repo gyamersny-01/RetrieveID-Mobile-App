@@ -1,6 +1,7 @@
 import {
   Alert,
   Linking,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -40,16 +41,21 @@ export default function ReportSubmittedScreen() {
 
   const location =
     getParamValue(params.location) ||
-    'Evandy Hostel';
+    'Not available';
 
   const from = getParamValue(params.from);
   const cameFromReport = from === 'report';
 
   const openDirections = async () => {
-    const mapsUrl =
-      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    const encodedLocation =
+      encodeURIComponent(
         String(location)
-      )}`;
+      );
+
+    const mapsUrl =
+      Platform.OS === 'ios'
+        ? `http://maps.apple.com/?daddr=${encodedLocation}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${encodedLocation}`;
 
     try {
       const supported =
@@ -185,10 +191,10 @@ const styles = StyleSheet.create({
   },
 
   body: {
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 16,
+    lineHeight: 23,
     color: COLORS.text,
-    marginTop: 28,
+    marginTop: 24,
   },
 
   locationCard: {
@@ -218,7 +224,7 @@ const styles = StyleSheet.create({
   },
 
   directions: {
-    marginTop: 44,
+    marginTop: 36,
   },
 
   done: {
